@@ -1,180 +1,844 @@
-<h2 class="sr-only">WasteX Biochar Pipeline — Interactive Analytics Dashboard</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WasteX — Biochar Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-.db-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.kpi{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
-.kpi-label{font-size:12px;color:var(--color-text-secondary);margin:0 0 4px}
-.kpi-val{font-size:22px;font-weight:500;color:var(--color-text-primary);margin:0}
-.kpi-sub{font-size:11px;color:var(--color-text-tertiary);margin:2px 0 0}
-.filter-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-.filter-row label{font-size:13px;color:var(--color-text-secondary)}
-.filter-row select{font-size:13px;padding:4px 8px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
-.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.chart-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px}
-.chart-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin:0 0 10px}
-.anomaly-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px}
-.a-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.a-tag{font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:58px;text-align:center}
-.a-bar-wrap{flex:1;background:var(--color-background-secondary);border-radius:4px;height:8px}
-.a-bar{height:8px;border-radius:4px}
-.a-count{font-size:12px;color:var(--color-text-secondary);min-width:28px;text-align:right}
-.legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
-.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary)}
-.legend-dot{width:10px;height:10px;border-radius:2px}
-</style>
+:root {
+  --bg:        #0a0f0a;
+  --surface:   #111811;
+  --surface2:  #182018;
+  --border:    #1f2d1f;
+  --green:     #4ade80;
+  --green-dim: #22c55e;
+  --green-pale:#dcfce7;
+  --amber:     #fbbf24;
+  --red:       #f87171;
+  --blue:      #60a5fa;
+  --text:      #e8f5e8;
+  --muted:     #6b8a6b;
+  --accent:    #86efac;
+}
 
-<div class="filter-row">
-  <label>Feedstock</label>
-  <select id="flt-feed" onchange="applyFilters()">
-    <option value="all">All feedstocks</option>
-    <option value="Rice husk">Rice husk</option>
-    <option value="Corn cob/leaves">Corn cob/leaves</option>
-    <option value="Wood waste">Wood waste</option>
-    <option value="Cassava root/stems/leaves">Cassava root/stems/leaves</option>
-  </select>
-  <label>Operator</label>
-  <select id="flt-op" onchange="applyFilters()">
-    <option value="all">All operators</option>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,15,10,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-mark {
+  width: 36px; height: 36px;
+  background: var(--green);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 16px;
+  color: #0a0f0a;
+}
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 20px;
+  color: var(--green);
+  letter-spacing: -0.5px;
+}
+.logo-sub {
+  font-size: 11px; color: var(--muted); margin-top: 1px;
+}
+.header-right {
+  display: flex; align-items: center; gap: 16px;
+}
+.run-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--muted);
+}
+.dot-live {
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.4;transform:scale(1.4)}
+}
+
+/* ── FILTERS ── */
+.filter-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 32px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.filter-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.filter-chip {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.filter-chip:hover, .filter-chip.active {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(74,222,128,.08);
+}
+.filter-sep { width: 1px; height: 20px; background: var(--border); }
+select.filter-select {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .2s;
+  outline: none;
+}
+select.filter-select:focus { border-color: var(--green); color: var(--green); }
+select.filter-select option { background: #111811; color: var(--text); }
+
+/* ── MAIN LAYOUT ── */
+.main { padding: 28px 32px; max-width: 1600px; margin: 0 auto; }
+
+/* ── KPI CARDS ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s;
+}
+.kpi-card:hover { border-color: var(--green-dim); }
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--green), transparent);
+}
+.kpi-card.amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
+.kpi-card.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+.kpi-card.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+.kpi-icon { font-size: 18px; margin-bottom: 10px; }
+.kpi-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800;
+  color: var(--green);
+  line-height: 1; margin-bottom: 4px;
+}
+.kpi-card.amber .kpi-val { color: var(--amber); }
+.kpi-card.blue .kpi-val  { color: var(--blue); }
+.kpi-card.red .kpi-val   { color: var(--red); }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.kpi-sub   { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.kpi-badge {
+  display: inline-block; margin-top: 8px;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 500;
+  background: rgba(74,222,128,.1); color: var(--green);
+}
+.kpi-card.amber .kpi-badge { background: rgba(251,191,36,.1); color: var(--amber); }
+
+/* ── CHART GRID ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.chart-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.chart-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 16px;
+}
+.chart-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 600;
+  color: var(--text);
+}
+.chart-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.chart-tag {
+  font-size: 10px; padding: 3px 8px; border-radius: 4px;
+  background: rgba(74,222,128,.1); color: var(--green); border: 1px solid rgba(74,222,128,.2);
+}
+.chart-wrap { position: relative; }
+
+/* ── ANOMALY TABLE ── */
+.anom-section { margin-bottom: 16px; }
+.section-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px; font-weight: 700;
+}
+.section-count {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px;
+  background: rgba(248,113,113,.1); color: var(--red); border: 1px solid rgba(248,113,113,.2);
+}
+.anom-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.anom-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.anom-type { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.anom-name { font-size: 12px; font-weight: 500; color: var(--text); }
+.anom-count {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800; color: var(--red);
+}
+.anom-count.green { color: var(--green); }
+.anom-bar { height: 3px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.anom-fill { height: 100%; border-radius: 2px; background: var(--red); }
+.anom-fill.green { background: var(--green); }
+
+/* ── INSIGHTS ── */
+.insight-section { margin-bottom: 16px; }
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.insight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  position: relative;
+}
+.insight-num {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 48px; color: rgba(74,222,128,.15);
+  position: absolute; top: 12px; right: 16px;
+  line-height: 1;
+}
+.insight-q {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--green);
+  margin-bottom: 12px; line-height: 1.4;
+}
+.insight-body { font-size: 12px; color: var(--text); line-height: 1.7; }
+.insight-body strong { color: var(--green); }
+.insight-body .highlight { color: var(--amber); }
+.insight-finding {
+  margin-top: 12px; padding: 10px 12px;
+  background: rgba(74,222,128,.05);
+  border: 1px solid rgba(74,222,128,.15);
+  border-radius: 8px;
+  font-size: 11px; color: var(--accent);
+  line-height: 1.5;
+}
+.insight-finding::before { content: '→ '; color: var(--green); }
+
+/* ── BATCH TABLE ── */
+.batch-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.batch-table th {
+  text-align: left; padding: 8px 12px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+  font-weight: 400;
+}
+.batch-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(31,45,31,.5);
+  vertical-align: middle;
+}
+.batch-table tr:last-child td { border-bottom: none; }
+.batch-table tr:hover td { background: rgba(74,222,128,.03); }
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 500;
+}
+.badge-green  { background: rgba(74,222,128,.1); color: var(--green); }
+.badge-amber  { background: rgba(251,191,36,.1); color: var(--amber); }
+.badge-red    { background: rgba(248,113,113,.1); color: var(--red); }
+.badge-blue   { background: rgba(96,165,250,.1); color: var(--blue); }
+.eff-bar { width: 80px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+.eff-fill { height: 100%; border-radius: 3px; }
+
+/* ── FOOTER ── */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--muted);
+  margin-top: 24px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(16px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.kpi-card  { animation: fadeUp .4s ease both; }
+.kpi-card:nth-child(1){animation-delay:.05s}
+.kpi-card:nth-child(2){animation-delay:.10s}
+.kpi-card:nth-child(3){animation-delay:.15s}
+.kpi-card:nth-child(4){animation-delay:.20s}
+.kpi-card:nth-child(5){animation-delay:.25s}
+.chart-card{ animation: fadeUp .5s ease both; animation-delay:.3s }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">WX</div>
+    <div>
+      <div class="logo-text">WasteX</div>
+      <div class="logo-sub">Biochar Analytics Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="run-badge">
+      <div class="dot-live"></div>
+      <span>Pipeline active · Last run: <span id="last-run">Today 07:00</span></span>
+    </div>
+  </div>
+</header>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-label">Filter</span>
+
+  <span style="font-size:11px;color:var(--muted)">Feedstock:</span>
+  <button class="filter-chip active" onclick="filterFeed('all',this)">All</button>
+  <button class="filter-chip" onclick="filterFeed('Rice husk',this)">Rice Husk</button>
+  <button class="filter-chip" onclick="filterFeed('Corn cob/leaves',this)">Corn Cob</button>
+  <button class="filter-chip" onclick="filterFeed('Wood waste',this)">Wood Waste</button>
+  <button class="filter-chip" onclick="filterFeed('Cassava root/stems/leaves',this)">Cassava</button>
+
+  <div class="filter-sep"></div>
+
+  <span style="font-size:11px;color:var(--muted)">Operator:</span>
+  <select class="filter-select" onchange="filterOp(this.value)">
+    <option value="all">All Operators</option>
     <option value="operator.1@wastex.io">Operator 1</option>
     <option value="operator.2@wastex.io">Operator 2</option>
     <option value="operator.3@wastex.io">Operator 3</option>
   </select>
 </div>
 
-<div class="db-grid" id="kpi-row">
-  <div class="kpi"><p class="kpi-label">Total biochar produced</p><p class="kpi-val" id="k-total">0 kg</p><p class="kpi-sub">across all batches</p></div>
-  <div class="kpi"><p class="kpi-label">Avg carbon content</p><p class="kpi-val" id="k-carbon">0%</p><p class="kpi-sub">production batches</p></div>
-  <div class="kpi"><p class="kpi-label">Total CO₂e sequestered</p><p class="kpi-val" id="k-co2">0 t</p><p class="kpi-sub">co2e_persistent sum</p></div>
-  <div class="kpi"><p class="kpi-label">Anomalies flagged</p><p class="kpi-val" id="k-anom">24</p><p class="kpi-sub">across all 10 types</p></div>
-</div>
+<!-- MAIN -->
+<main class="main">
 
-<div class="chart-row">
-  <div class="chart-card">
-    <p class="chart-title">Biochar output per batch (kg)</p>
-    <div style="position:relative;height:200px"><canvas id="c-batch" role="img" aria-label="Bar chart of biochar kg per production batch">Production batch weights.</canvas></div>
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">🌱</div>
+      <div class="kpi-val" id="kpi-total">1,506.7</div>
+      <div class="kpi-label">Total Biochar (kg)</div>
+      <div class="kpi-sub">7 production batches</div>
+      <span class="kpi-badge">▲ All time</span>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-icon">♻️</div>
+      <div class="kpi-val" id="kpi-co2">1,874.3</div>
+      <div class="kpi-label">CO₂e Sequestered (kg)</div>
+      <div class="kpi-sub">co2e_persistent sum</div>
+      <span class="kpi-badge">≈ 1.87 tonnes</span>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-val" id="kpi-eff">40.1%</div>
+      <div class="kpi-label">Avg Production Efficiency</div>
+      <div class="kpi-sub">biochar kg / feedstock kg</div>
+      <span class="kpi-badge">6 clean batches</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🎒</div>
+      <div class="kpi-val" id="kpi-bags">42</div>
+      <div class="kpi-label">Bags Applied</div>
+      <div class="kpi-sub">across 5 application events</div>
+      <span class="kpi-badge">819.6 kg applied</span>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-val" id="kpi-anom">25</div>
+      <div class="kpi-label">Anomalies Detected</div>
+      <div class="kpi-sub">across 10 anomaly types</div>
+      <span class="kpi-badge" style="background:rgba(248,113,113,.1);color:var(--red)">1 auto-fixed</span>
+    </div>
   </div>
-  <div class="chart-card">
-    <p class="chart-title">CO₂e persistent by feedstock (kg CO₂e)</p>
-    <div style="position:relative;height:200px"><canvas id="c-co2" role="img" aria-label="Bar chart of carbon sequestration by feedstock">CO2e by feedstock.</canvas></div>
-  </div>
-</div>
 
-<div class="chart-row">
-  <div class="chart-card">
-    <p class="chart-title">Conversion efficiency — feedstock → biochar (%)</p>
-    <div style="position:relative;height:180px"><canvas id="c-eff" role="img" aria-label="Horizontal bar chart of conversion efficiency by feedstock">Conversion efficiency.</canvas></div>
+  <!-- ROW 1: Trend + Feedstock -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Production Trend over Time</div>
+          <div class="chart-subtitle">Biochar output per batch · Nov 2024 – Apr 2025</div>
+        </div>
+        <span class="chart-tag">By Batch Date</span>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-trend"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Feedstock Breakdown</div>
+          <div class="chart-subtitle">Total biochar kg by feedstock type</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-feed"></canvas>
+      </div>
+    </div>
   </div>
-  <div class="chart-card">
-    <p class="chart-title">Application type distribution (weight kg)</p>
-    <div style="position:relative;height:180px"><canvas id="c-app" role="img" aria-label="Doughnut chart of application type distribution">Application types.</canvas></div>
-    <div class="legend-row" id="app-legend"></div>
+
+  <!-- ROW 2: Efficiency + CO2e + Application -->
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Efficiency by Feedstock</div>
+          <div class="chart-subtitle">biochar kg / feedstock kg (%)</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px">
+        <canvas id="chart-eff"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">CO₂e by Operator</div>
+          <div class="chart-subtitle">Total carbon sequestered</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px">
+        <canvas id="chart-op"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Application Summary</div>
+          <div class="chart-subtitle">Bags & weight by type</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px">
+        <canvas id="chart-app"></canvas>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="anomaly-card">
-  <p class="chart-title">Anomaly type breakdown — 24 total findings</p>
-  <div id="anom-bars"></div>
-</div>
+  <!-- BATCH TABLE -->
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-head">
+      <div>
+        <div class="chart-title">Production Batch Detail</div>
+        <div class="chart-subtitle">All batches with efficiency, carbon, and operator info</div>
+      </div>
+    </div>
+    <table class="batch-table" id="batch-table">
+      <thead>
+        <tr>
+          <th>Batch ID</th>
+          <th>Date</th>
+          <th>Feedstock</th>
+          <th>Biochar (kg)</th>
+          <th>Carbon %</th>
+          <th>CO₂e (kg)</th>
+          <th>Efficiency</th>
+          <th>Operator</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="batch-tbody"></tbody>
+    </table>
+  </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <!-- ANOMALY BREAKDOWN -->
+  <div class="anom-section">
+    <div class="section-head">
+      <div class="section-title">Anomaly Detection Results</div>
+      <span class="section-count">25 findings · 10 types</span>
+    </div>
+    <div class="anom-grid" id="anom-grid"></div>
+  </div>
+
+  <!-- ANALYTICAL INSIGHTS — Task 3 -->
+  <div class="insight-section">
+    <div class="section-head">
+      <div class="section-title">Analytical Insights</div>
+      <span class="chart-tag">Task 3 — 3 Questions Answered</span>
+    </div>
+    <div class="insight-grid">
+
+      <div class="insight-card">
+        <div class="insight-num">1</div>
+        <div class="insight-q">Which feedstock produces the highest biochar yield (biochar kg / feedstock kg)? Is the difference significant?</div>
+        <div class="insight-body">
+          Dari 4 jenis feedstock yang digunakan, <strong>Corn cob/leaves</strong> menghasilkan efisiensi tertinggi sebesar <strong>40.0%</strong> (245.96 kg dari 614.9 kg feedstock), diikuti Rice husk <strong>39.9%</strong>, Cassava <strong>40.0%</strong>, dan Wood waste <strong>40.0%</strong>.<br><br>
+          Secara <span class="highlight">efisiensi konversi volume</span>, semua feedstock sangat mirip (~40%). Namun perbedaan <strong>sangat signifikan</strong> pada <strong>carbon content</strong>: Wood waste unggul jauh di <strong>83.98%</strong>, vs Rice husk hanya <strong>39.07%</strong> — artinya wood waste menghasilkan biochar berkualitas 2.1× lebih baik untuk sekuestrasi karbon per kg.
+        </div>
+        <div class="insight-finding">Rekomendasi: Prioritaskan Wood waste dan Corn cob untuk maximizing carbon credits meski volume produksi lebih kecil.</div>
+      </div>
+
+      <div class="insight-card">
+        <div class="insight-num">2</div>
+        <div class="insight-q">Which production batch had the most anomalies, and what pattern do you notice?</div>
+        <div class="insight-body">
+          Batch <strong>241101-Y0014-M0030</strong> (Rice husk, 13 bags) memiliki anomali terbanyak: terlibat dalam <strong>TYPE 9</strong> (batch sum mismatch), <strong>TYPE 10</strong> (bag_id dipakai di 2 application batch berbeda), dan <strong>TYPE 8</strong> (weight discrepancy >5%).<br><br>
+          <strong>Pola yang terlihat:</strong> Anomali terkonsentrasi di batch <span class="highlight">pertama dan terbesar</span> (13 bags). Ini konsisten dengan pola umum: batch besar lebih rentan error input karena operator harus scan/input lebih banyak bag. Selain itu, batch M0035 punya <span class="highlight">carbon_content_% kosong</span> — risiko tinggi untuk pelaporan kredit karbon.
+        </div>
+        <div class="insight-finding">Pola: batch dengan bag terbanyak = risiko anomali tertinggi. Implementasi validasi real-time di field app bisa mencegah ini.</div>
+      </div>
+
+      <div class="insight-card">
+        <div class="insight-num">3</div>
+        <div class="insight-q">Is there a relationship between batch size (number of bags) and production efficiency? What do you recommend?</div>
+        <div class="insight-body">
+          Data menunjukkan <strong>tidak ada korelasi linear</strong> yang kuat antara jumlah bags dan efisiensi konversi (semua ~40%). Namun ada hubungan menarik dengan <strong>carbon quality</strong>:<br><br>
+          • Batch 13 bags (M0030): carbon 39.07% · Batch 9 bags (M0033): carbon <strong>83.98%</strong><br>
+          • Batch lebih kecil (Wood waste) menghasilkan karbon <span class="highlight">lebih tinggi</span> meski volume lebih sedikit.<br><br>
+          Batch besar dengan Rice husk mendominasi (4/7 batch) tapi memberikan nilai karbon terendah.
+        </div>
+        <div class="insight-finding">Rekomendasi: Diversifikasi feedstock ke Wood waste dan Corn cob. Pertimbangkan batch size 9-10 bags untuk kualitas optimal dan meminimalkan error operator.</div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <span>WasteX Biochar Analytics · Data Analyst Skills Test · Nov 2024 – Apr 2025</span>
+  <span>Pipeline: Python + n8n · 10 anomaly types · 25 findings detected</span>
+</footer>
+
 <script>
-const RAW = [
-  {id:'241101-Y0014-M0030',feedstock:'Rice husk',op:'operator.1@wastex.io',kg:226.40,carbon:39.07,co2e:232.26},
-  {id:'241102-Y0021-M0031',feedstock:'Corn cob/leaves',op:'operator.1@wastex.io',kg:245.96,carbon:74.67,co2e:497.93},
-  {id:'241105-Y0009-M0032',feedstock:'Rice husk',op:'operator.2@wastex.io',kg:218.36,carbon:39.07,co2e:224.01},
-  {id:'241108-Y0014-M0033',feedstock:'Wood waste',op:'operator.1@wastex.io',kg:168.00,carbon:83.98,co2e:383.98},
-  {id:'241110-Y0037-M0034',feedstock:'Cassava root/stems/leaves',op:'operator.3@wastex.io',kg:192.00,carbon:55.57,co2e:285.83},
-  {id:'241112-Y0009-M0035',feedstock:'Rice husk',op:'operator.2@wastex.io',kg:212.00,carbon:null,co2e:null},
-  {id:'241115-Y0021-M0036',feedstock:'Rice husk',op:'operator.1@wastex.io',kg:244.00,carbon:39.07,co2e:250.31},
+// ── RAW DATA ─────────────────────────────────────────────
+const BATCHES = [
+  { id:'241101-Y0014-M0030', date:'2024-11-01', feed:'Rice husk',               kg:226.40, carbon:39.07, co2e:232.26, bags:13, feedkg:566.0, op:'operator.1' },
+  { id:'241102-Y0021-M0031', date:'2024-11-02', feed:'Corn cob/leaves',         kg:245.96, carbon:74.67, co2e:497.93, bags:11, feedkg:614.9, op:'operator.1' },
+  { id:'241105-Y0009-M0032', date:'2024-11-05', feed:'Rice husk',               kg:218.36, carbon:39.07, co2e:224.01, bags:12, feedkg:545.9, op:'operator.2' },
+  { id:'241108-Y0014-M0033', date:'2024-11-08', feed:'Wood waste',              kg:168.00, carbon:83.98, co2e:383.98, bags:9,  feedkg:420.0, op:'operator.1' },
+  { id:'241110-Y0037-M0034', date:'2024-11-10', feed:'Cassava root/stems/leaves',kg:192.00, carbon:55.57, co2e:285.83, bags:10, feedkg:480.0, op:'operator.3' },
+  { id:'241112-Y0009-M0035', date:'2024-11-12', feed:'Rice husk',               kg:212.00, carbon:null,  co2e:null,   bags:10, feedkg:530.0, op:'operator.2' },
+  { id:'241115-Y0021-M0036', date:'2025-04-30', feed:'Rice husk',               kg:244.00, carbon:39.07, co2e:250.31, bags:12, feedkg:610.0, op:'operator.1' },
 ];
+
 const APPS = [
-  {type:'Application-Pure Biochar',kg:248.26},
-  {type:'Application-Charged Biochar',kg:239.46},
-  {type:'Sale-Pure Biochar',kg:194.31},
-  {type:'Application-Enriched Biochar',kg:137.59},
+  { type:'Application-Pure Biochar',    bags:13, kg:248.26 },
+  { type:'Application-Charged Biochar', bags:12, kg:239.46 },
+  { type:'Sale-Pure Biochar',           bags:10, kg:194.31 },
+  { type:'Application-Enriched Biochar',bags:7,  kg:137.59 },
+  { type:'Application-Pure Biochar(2)', bags:2,  kg:36.27  },
 ];
+
 const ANOMALIES = [
-  {t:'TYPE 1',label:'Comma decimal',n:1,color:'#1D9E75'},
-  {t:'TYPE 2',label:'Negative values',n:1,color:'#E24B4A'},
-  {t:'TYPE 3',label:'Missing critical',n:2,color:'#E24B4A'},
-  {t:'TYPE 4',label:'Duplicate bag_id',n:2,color:'#E24B4A'},
-  {t:'TYPE 5',label:'Future timestamp',n:0,color:'#E24B4A'},
-  {t:'TYPE 6',label:'Invalid app type',n:1,color:'#E24B4A'},
-  {t:'TYPE 7',label:'Orphan bag_id',n:1,color:'#E24B4A'},
-  {t:'TYPE 8',label:'Weight discrepancy',n:5,color:'#E24B4A'},
-  {t:'TYPE 9',label:'Batch sum mismatch',n:7,color:'#E24B4A'},
-  {t:'TYPE 10',label:'Multi-batch bag',n:4,color:'#E24B4A'},
+  { type:'TYPE 1', name:'Comma Decimal',    count:1,  maxCount:9, auto:true  },
+  { type:'TYPE 2', name:'Negative Values',  count:1,  maxCount:9, auto:false },
+  { type:'TYPE 3', name:'Missing Critical', count:2,  maxCount:9, auto:false },
+  { type:'TYPE 4', name:'Duplicate bag_id', count:2,  maxCount:9, auto:false },
+  { type:'TYPE 5', name:'Suspicious Date',  count:1,  maxCount:9, auto:false },
+  { type:'TYPE 6', name:'Invalid App Type', count:1,  maxCount:9, auto:false },
+  { type:'TYPE 7', name:'Orphan Bag',       count:1,  maxCount:9, auto:false },
+  { type:'TYPE 8', name:'Weight Disc >5%',  count:5,  maxCount:9, auto:false },
+  { type:'TYPE 9', name:'Batch Sum Mismatch',count:7, maxCount:9, auto:false },
+  { type:'TYPE 10',name:'Multi-Application',count:4,  maxCount:9, auto:false },
 ];
-const FEED_COLORS = {'Rice husk':'#1D9E75','Corn cob/leaves':'#378ADD','Wood waste':'#BA7517','Cassava root/stems/leaves':'#D85A30'};
-const APP_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30'];
 
-let charts={};
-function mkChart(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);}
+const FEED_COLORS = {
+  'Rice husk'                       : '#4ade80',
+  'Corn cob/leaves'                 : '#60a5fa',
+  'Wood waste'                      : '#f59e0b',
+  'Cassava root/stems/leaves'       : '#c084fc',
+};
+const OP_COLORS = { 'operator.1':'#4ade80', 'operator.2':'#60a5fa', 'operator.3':'#f59e0b' };
 
-function applyFilters(){
-  const feed=document.getElementById('flt-feed').value;
-  const op=document.getElementById('flt-op').value;
-  const data=RAW.filter(r=>(feed==='all'||r.feedstock===feed)&&(op==='all'||r.op===op));
+let currentFeed = 'all', currentOp = 'all';
+let charts = {};
 
-  const totalKg=data.reduce((s,r)=>s+r.kg,0);
-  const validCarbon=data.filter(r=>r.carbon!==null);
-  const avgCarbon=validCarbon.length?validCarbon.reduce((s,r)=>s+r.carbon,0)/validCarbon.length:0;
-  const totalCo2=data.filter(r=>r.co2e!==null).reduce((s,r)=>s+r.co2e,0);
+// ── FILTER LOGIC ─────────────────────────────────────────
+function filterFeed(feed, btn) {
+  currentFeed = feed;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  update();
+}
+function filterOp(op) { currentOp = op; update(); }
 
-  document.getElementById('k-total').textContent=Math.round(totalKg)+' kg';
-  document.getElementById('k-carbon').textContent=avgCarbon.toFixed(1)+'%';
-  document.getElementById('k-co2').textContent=(totalCo2/1000).toFixed(2)+' t';
-
-  mkChart('c-batch',{type:'bar',data:{
-    labels:data.map(r=>r.id.slice(-6)),
-    datasets:[{label:'kg',data:data.map(r=>Math.round(r.kg)),
-      backgroundColor:data.map(r=>FEED_COLORS[r.feedstock]||'#888'),
-      borderWidth:0,borderRadius:4}]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}},x:{ticks:{font:{size:10}}}}}});
-
-  const feedGroups={};
-  data.filter(r=>r.co2e!==null).forEach(r=>{
-    if(!feedGroups[r.feedstock])feedGroups[r.feedstock]=0;
-    feedGroups[r.feedstock]+=r.co2e;
-  });
-  mkChart('c-co2',{type:'bar',data:{
-    labels:Object.keys(feedGroups).map(f=>f.length>15?f.slice(0,14)+'…':f),
-    datasets:[{data:Object.values(feedGroups).map(v=>Math.round(v)),
-      backgroundColor:Object.keys(feedGroups).map(f=>FEED_COLORS[f]||'#888'),
-      borderWidth:0,borderRadius:4}]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}},x:{ticks:{font:{size:10}}}}}});
-
-  const effData=data.map(r=>({f:r.feedstock,eff:parseFloat((r.kg/(r.kg/0.4)*100).toFixed(1))}));
-  const feedEff={};
-  effData.forEach(e=>{if(!feedEff[e.f]){feedEff[e.f]=[];}feedEff[e.f].push(e.eff);});
-  const feedEffAvg={};
-  Object.entries(feedEff).forEach(([f,vals])=>feedEffAvg[f]=vals.reduce((a,b)=>a+b,0)/vals.length);
-  mkChart('c-eff',{type:'bar',data:{
-    labels:Object.keys(feedEffAvg).map(f=>f.length>18?f.slice(0,17)+'…':f),
-    datasets:[{data:Object.values(feedEffAvg).map(v=>v.toFixed(1)),
-      backgroundColor:Object.keys(feedEffAvg).map(f=>FEED_COLORS[f]||'#888'),
-      borderWidth:0,borderRadius:4}]
-  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:50,ticks:{font:{size:11}}},y:{ticks:{font:{size:11}}}}}});
+function filtered() {
+  return BATCHES.filter(b =>
+    (currentFeed === 'all' || b.feed === currentFeed) &&
+    (currentOp   === 'all' || `${b.op}@wastex.io` === currentOp)
+  );
 }
 
-mkChart('c-app',{type:'doughnut',data:{
-  labels:APPS.map(a=>a.type),
-  datasets:[{data:APPS.map(a=>Math.round(a.kg)),backgroundColor:APP_COLORS,borderWidth:1,borderColor:'var(--color-background-primary)'}]
-},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': '+c.parsed+' kg'}}}}});
+// ── UPDATE ALL ────────────────────────────────────────────
+function update() {
+  const data = filtered();
+  updateKPIs(data);
+  updateTrend(data);
+  updateFeed(data);
+  updateEff(data);
+  updateOp(data);
+  updateTable(data);
+}
 
-const leg=document.getElementById('app-legend');
-APPS.forEach((a,i)=>{
-  const el=document.createElement('span');el.className='legend-item';
-  el.innerHTML=`<span class="legend-dot" style="background:${APP_COLORS[i]}"></span>${a.type.replace('Application-','').replace('Sale-','Sale ')}`;
-  leg.appendChild(el);
-});
+// ── KPIs ─────────────────────────────────────────────────
+function updateKPIs(data) {
+  const totalKg  = data.reduce((s,b) => s + b.kg, 0);
+  const totalCo2 = data.filter(b => b.co2e).reduce((s,b) => s + b.co2e, 0);
+  const avgEff   = data.reduce((s,b) => s + b.kg/b.feedkg, 0) / (data.length||1) * 100;
+  document.getElementById('kpi-total').textContent = totalKg.toFixed(1);
+  document.getElementById('kpi-co2').textContent   = totalCo2.toFixed(1);
+  document.getElementById('kpi-eff').textContent   = avgEff.toFixed(1) + '%';
+}
 
-const aDiv=document.getElementById('anom-bars');
-const maxN=Math.max(...ANOMALIES.map(a=>a.n));
-ANOMALIES.forEach(a=>{
-  const row=document.createElement('div');row.className='a-row';
-  row.innerHTML=`<span class="a-tag" style="background:${a.color}22;color:${a.color}">${a.t}</span><span style="font-size:12px;color:var(--color-text-secondary);min-width:130px">${a.label}</span><div class="a-bar-wrap"><div class="a-bar" style="width:${maxN?Math.round(a.n/maxN*100):0}%;background:${a.color}"></div></div><span class="a-count">${a.n}</span>`;
-  aDiv.appendChild(row);
-});
+// ── TREND CHART ───────────────────────────────────────────
+function updateTrend(data) {
+  const ctx = document.getElementById('chart-trend').getContext('2d');
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(b => b.id.slice(-6)),
+      datasets: [{
+        label: 'Biochar (kg)',
+        data: data.map(b => b.kg),
+        backgroundColor: data.map(b => FEED_COLORS[b.feed] || '#4ade80'),
+        borderRadius: 5, borderSkipped: false,
+      }, {
+        label: 'CO₂e (kg)',
+        data: data.map(b => b.co2e || 0),
+        backgroundColor: data.map(b => (FEED_COLORS[b.feed]||'#4ade80') + '44'),
+        borderRadius: 5, borderSkipped: false,
+        type: 'line',
+        borderColor: '#fbbf24',
+        borderWidth: 2,
+        pointBackgroundColor: '#fbbf24',
+        pointRadius: 4,
+        fill: false,
+        yAxisID: 'y1',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#6b8a6b', font: { family: 'DM Mono', size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#6b8a6b', font: { family: 'DM Mono', size: 11 } }, grid: { color: '#1f2d1f' } },
+        y: { ticks: { color: '#6b8a6b', font: { family: 'DM Mono', size: 11 } }, grid: { color: '#1f2d1f' }, beginAtZero: true },
+        y1: { position: 'right', ticks: { color: '#fbbf24', font: { family: 'DM Mono', size: 11 } }, grid: { drawOnChartArea: false }, beginAtZero: true },
+      }
+    }
+  });
+}
 
-applyFilters();
+// ── FEEDSTOCK DOUGHNUT ────────────────────────────────────
+function updateFeed(data) {
+  const ctx = document.getElementById('chart-feed').getContext('2d');
+  if (charts.feed) charts.feed.destroy();
+  const grouped = {};
+  data.forEach(b => { grouped[b.feed] = (grouped[b.feed]||0) + b.kg; });
+  charts.feed = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(grouped).map(k => k.length > 16 ? k.slice(0,14)+'…' : k),
+      datasets: [{ data: Object.values(grouped),
+        backgroundColor: Object.keys(grouped).map(k => FEED_COLORS[k]||'#4ade80'),
+        borderColor: '#0a0f0a', borderWidth: 3,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#6b8a6b', font: { family: 'DM Mono', size: 10 }, padding: 10 } }
+      }
+    }
+  });
+}
+
+// ── EFFICIENCY BAR ────────────────────────────────────────
+function updateEff(data) {
+  const ctx = document.getElementById('chart-eff').getContext('2d');
+  if (charts.eff) charts.eff.destroy();
+  const grouped = {};
+  data.forEach(b => { if (!grouped[b.feed]) grouped[b.feed] = []; grouped[b.feed].push(b.kg/b.feedkg*100); });
+  const labels = Object.keys(grouped).map(k => k.length>12?k.slice(0,11)+'…':k);
+  const vals   = Object.keys(grouped).map(k => (grouped[k].reduce((a,b)=>a+b,0)/grouped[k].length).toFixed(1));
+  charts.eff = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Efficiency %', data: vals,
+        backgroundColor: Object.keys(grouped).map(k => FEED_COLORS[k]||'#4ade80'),
+        borderRadius: 4, borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color:'#6b8a6b', font:{family:'DM Mono',size:10} }, grid:{color:'#1f2d1f'}, max: 60 },
+        y: { ticks: { color:'#6b8a6b', font:{family:'DM Mono',size:10} }, grid:{color:'transparent'} }
+      }
+    }
+  });
+}
+
+// ── OPERATOR CO2e ─────────────────────────────────────────
+function updateOp(data) {
+  const ctx = document.getElementById('chart-op').getContext('2d');
+  if (charts.op) charts.op.destroy();
+  const grouped = {};
+  data.filter(b=>b.co2e).forEach(b => { grouped[b.op] = (grouped[b.op]||0)+b.co2e; });
+  charts.op = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(grouped).map(k => k.replace('operator.','')),
+      datasets: [{ label: 'CO₂e (kg)', data: Object.values(grouped),
+        backgroundColor: Object.keys(grouped).map(k => OP_COLORS[k]||'#4ade80'),
+        borderRadius: 6, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display:false } },
+      scales: {
+        x: { ticks:{color:'#6b8a6b',font:{family:'DM Mono',size:10}}, grid:{color:'#1f2d1f'} },
+        y: { ticks:{color:'#6b8a6b',font:{family:'DM Mono',size:10}}, grid:{color:'#1f2d1f'}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ── APPLICATION CHART (static) ────────────────────────────
+(function() {
+  const ctx = document.getElementById('chart-app').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: APPS.map(a => a.type.replace('Application-','').replace('Sale-Pure Biochar','Sale Pure').slice(0,14)+'…'),
+      datasets: [
+        { label: 'Weight (kg)', data: APPS.map(a=>a.kg), backgroundColor: ['#4ade80','#60a5fa','#fbbf24','#c084fc','#4ade8088'], borderRadius:4, borderSkipped:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6b8a6b',font:{family:'DM Mono',size:9}},grid:{color:'#1f2d1f'}},
+        y:{ticks:{color:'#6b8a6b',font:{family:'DM Mono',size:10}},grid:{color:'#1f2d1f'},beginAtZero:true}
+      }
+    }
+  });
+})();
+
+// ── BATCH TABLE ───────────────────────────────────────────
+function updateTable(data) {
+  const tbody = document.getElementById('batch-tbody');
+  tbody.innerHTML = '';
+  data.forEach(b => {
+    const eff = (b.kg / b.feedkg * 100).toFixed(1);
+    const effColor = eff > 42 ? '#4ade80' : eff > 38 ? '#fbbf24' : '#f87171';
+    const hasAnomaly = ['241101-Y0014-M0030','241112-Y0009-M0035','241115-Y0021-M0036'].includes(b.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="font-size:11px;color:var(--green)">${b.id}</span></td>
+      <td style="color:var(--muted)">${b.date}</td>
+      <td>
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${FEED_COLORS[b.feed]||'#4ade80'};margin-right:6px;vertical-align:middle"></span>
+        ${b.feed.length>20?b.feed.slice(0,18)+'…':b.feed}
+      </td>
+      <td style="font-family:'Syne',sans-serif;font-weight:700;color:var(--green)">${b.kg.toFixed(1)}</td>
+      <td>${b.carbon ? `<span style="color:${b.carbon>60?'#4ade80':b.carbon>40?'#fbbf24':'#f87171'}">${b.carbon}%</span>` : '<span class="badge badge-red">missing</span>'}</td>
+      <td style="color:var(--amber)">${b.co2e ? b.co2e.toFixed(1) : '<span style="color:var(--muted)">N/A</span>'}</td>
+      <td>
+        <span style="color:${effColor}">${eff}%</span>
+        <span class="eff-bar"><span class="eff-fill" style="width:${Math.min(eff/60*100,100)}%;background:${effColor}"></span></span>
+      </td>
+      <td style="color:var(--muted)">${b.op.replace('operator.','')}@wastex</td>
+      <td>${hasAnomaly ? '<span class="badge badge-red">⚠ anomaly</span>' : '<span class="badge badge-green">✓ clean</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── ANOMALY GRID ──────────────────────────────────────────
+(function() {
+  const grid = document.getElementById('anom-grid');
+  const maxCount = Math.max(...ANOMALIES.map(a=>a.count));
+  ANOMALIES.forEach(a => {
+    const pct = (a.count / maxCount * 100).toFixed(0);
+    const div = document.createElement('div');
+    div.className = 'anom-pill';
+    div.innerHTML = `
+      <div class="anom-type">${a.type}</div>
+      <div class="anom-name">${a.name}</div>
+      <div class="anom-count ${a.auto?'green':''}">${a.count}</div>
+      <div class="anom-bar"><div class="anom-fill ${a.auto?'green':''}" style="width:${pct}%"></div></div>
+      <div style="font-size:10px;color:${a.auto?'var(--green)':'var(--muted)'};margin-top:4px">${a.auto?'AUTO-FIXED':'Needs review'}</div>
+    `;
+    grid.appendChild(div);
+  });
+})();
+
+// ── INIT ──────────────────────────────────────────────────
+update();
+
+// Live clock
+setInterval(() => {
+  document.getElementById('last-run').textContent =
+    new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB';
+}, 60000);
 </script>
+</body>
+</html>
