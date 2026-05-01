@@ -1,0 +1,46 @@
+# === CREDENTIALS & SECRETS (JANGAN PERNAH DI-COMMIT) ===
+credentials.json
+*.json.secret
+.env
+.env.*
+token.json
+service_account*.json
+
+# === DATA FILES (Excel - terlalu besar & bukan source code) ===
+*.xlsx
+*.xls
+*.csv
+data/
+
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# === VIRTUAL ENVIRONMENT ===
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# === IDE & OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === LOGS & TEMP ===
+*.log
+*.tmp
+*.temp

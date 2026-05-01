@@ -1,0 +1,1659 @@
+{
+  "name": "WasteX Biochar Data Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "676a7745-0b13-427d-bf69-932c887ace99",
+      "name": "⏰ Daily Trigger 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "biochar_production",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "8b7f9a5f-d8d0-423c-b142-2933f66803f8",
+      "name": "📥 Read biochar_production",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        -16,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "bag_production",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "1f626216-9f47-4d97-9572-9a869aa79885",
+      "name": "📥 Read bag_production",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        -16,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "biochar_application",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a4bb59d8-d050-49ed-973b-ace0782f09f2",
+      "name": "📥 Read biochar_application",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        -16,
+        384
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "bag_application",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "77bedc99-68b5-4955-a39a-15385c66b39c",
+      "name": "📥 Read bag_application",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        -16,
+        576
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Ambil data langsung dari masing-masing Read node via referensi\n// Cara ini lebih reliable daripada tebak-tebak kolom\nconst addIdx = arr => arr.map((r,i) => ({...r, _row_index: i+2}));\n\nreturn [{ json: {\n  biochar_prod : addIdx($('📥 Read biochar_production').all().map(i=>i.json)),\n  bag_prod     : addIdx($('📥 Read bag_production').all().map(i=>i.json)),\n  biochar_app  : addIdx($('📥 Read biochar_application').all().map(i=>i.json)),\n  bag_app      : addIdx($('📥 Read bag_application').all().map(i=>i.json)),\n  loaded_at    : new Date().toISOString(),\n}}];\n"
+      },
+      "id": "95b5ab09-a5b0-42ba-95f8-1525a6ecba3f",
+      "name": "🔗 Collect All Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $input.first().json;\nconst wmap={}, ids=new Set(), bic={}, bam={}, bsum={};\nfor (const r of data.bag_prod) {\n  const bid=String(r.bag_id||''), w=parseFloat(String(r.weight||'').replace(',','.'));\n  if(bid){ids.add(bid); bic[bid]=(bic[bid]||0)+1;}\n  if(bid&&!isNaN(w)){\n    wmap[bid]=w;\n    const p=String(r.production_id||'');\n    if(p) bsum[p]=(bsum[p]||0)+w;\n  }\n}\nfor (const r of data.bag_app) {\n  const bid=String(r.bag_id||''), aid=String(r.application_id||'');\n  if(bid&&aid){if(!bam[bid])bam[bid]=[]; if(!bam[bid].includes(aid))bam[bid].push(aid);}\n}\nreturn [{json:{...data, lookup:{\n  bag_prod_weight_map:wmap,\n  bag_prod_id_set:[...ids],\n  bag_id_count:bic,\n  bag_app_map:bam,\n  batch_sums:bsum,\n}}}];\n"
+      },
+      "id": "041c136a-7e09-4f88-bba5-523d6385cf28",
+      "name": "🗺️ Build Lookup Maps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst payload=$input.first().json, data=payload, lk=payload.lookup;\nconst today=new Date(); today.setHours(0,0,0,0);\nconst VALID=['Application-Pure Biochar','Application-Charged Biochar','Sale-Pure Biochar','Sale-Charged Biochar'];\nconst anomalies=[], fixedBag=JSON.parse(JSON.stringify(data.bag_prod));\nconst toF=v=>{try{return parseFloat(String(v).replace(',','.'))}catch{return NaN}};\nconst toD=v=>{try{const d=new Date(v);return isNaN(d)?null:d}catch{return null}};\nconst empty=v=>v==null||String(v).trim()===''||String(v).toLowerCase()==='nan';\nconst log=(sh,tp,ds,fi,or,fx,ac,ri)=>({\n  Sheet:sh,anomaly_type:tp,description:ds,Field:fi,\n  original_value:String(or),suggested_fix:String(fx),action:ac,Record_ID:String(ri),\n  detected_at:new Date().toISOString().replace('T',' ').slice(0,19),\n  Reviewed_By:'',Resolution:'',Resolved_At:'',\n});\n\n// TYPE 1\nfor(let i=0;i<fixedBag.length;i++){\n  const r=fixedBag[i],w=String(r.weight||'');\n  if(w.includes(',')){const f=parseFloat(w.replace(',','.'));\n    anomalies.push(log('bag_production','TYPE 1',`Comma decimal: \"${w}\" → ${f}`,'weight',w,f,'AUTO-FIXED → CLEANED',r.bag_id||''));\n    fixedBag[i].weight=f;}\n}\n// TYPE 2\nfor(const r of fixedBag)for(const f of['weight','co2e_persistent','co2e_100','spc']){const v=toF(r[f]);if(!isNaN(v)&&v<0)anomalies.push(log('bag_production','TYPE 2',`Negative: ${f}=${v}`,f,v,'Requires human review','FLAGGED → VALIDATION_QUEUE',r.bag_id||''));}\nfor(const r of data.biochar_prod)for(const f of['co2e_persistent','co2e_100','spc']){const v=toF(r[f]);if(!isNaN(v)&&v<0)anomalies.push(log('biochar_production','TYPE 2',`Negative: ${f}=${v}`,f,v,'Requires human review','FLAGGED → VALIDATION_QUEUE',r.activity_id||''));}\n// TYPE 3\nfor(const r of fixedBag)if(empty(r.weight))anomalies.push(log('bag_production','TYPE 3','Missing: weight','weight','','Requires human review','FLAGGED → VALIDATION_QUEUE',r.bag_id||''));\nfor(const r of data.biochar_prod)if(empty(r['carbon_content_%']))anomalies.push(log('biochar_production','TYPE 3','Missing: carbon_content_%','carbon_content_%','','Requires human review','FLAGGED → VALIDATION_QUEUE',r.activity_id||''));\n// TYPE 4\nfor(const r of data.bag_prod){const b=String(r.bag_id||'');if((lk.bag_id_count[b]||0)>1)anomalies.push(log('bag_production','TYPE 4',`Duplicate bag_id weight=${r.weight}`,'bag_id',b,'Keep first occurrence','FLAGGED → VALIDATION_QUEUE',b));}\n// TYPE 5\nfor(const{name:nm,rows,id} of[{name:'biochar_production',rows:data.biochar_prod,id:'activity_id'},{name:'bag_production',rows:data.bag_prod,id:'bag_id'},{name:'biochar_application',rows:data.biochar_app,id:'activity_id'},{name:'bag_application',rows:data.bag_app,id:'bag_id'}]){\n  for(const r of rows){const ts=toD(r.Timestamp);if(ts&&ts>today)anomalies.push(log(nm,'TYPE 5',`Future Timestamp: ${r.Timestamp}`,'Timestamp',String(r.Timestamp),'Requires human review','FLAGGED → VALIDATION_QUEUE',r[id]||''));}}\nfor(const r of data.biochar_app){\n  const ad=toD(r.application_date),ts=toD(r.Timestamp),aid=r.activity_id||'';\n  if(ad&&ad>today)anomalies.push(log('biochar_application','TYPE 5',`Future application_date: ${r.application_date}`,'application_date',String(r.application_date),'Requires human review','FLAGGED → VALIDATION_QUEUE',aid));\n  if(ad&&ts){const gap=Math.round((ad-ts)/86400000);if(gap>30)anomalies.push(log('biochar_application','TYPE 5',`Suspicious app_date: ${r.application_date} adalah ${gap}h setelah Timestamp ${r.Timestamp}`,'application_date',String(r.application_date),'Konfirmasi ke operator','FLAGGED → VALIDATION_QUEUE',aid));}}\n// TYPE 6\nfor(const r of data.biochar_app){const at=String(r.application_type||'');if(!VALID.includes(at))anomalies.push(log('biochar_application','TYPE 6',`Invalid application_type: \"${at}\"`,'application_type',at,`Must be one of: ${VALID.join(', ')}`,'FLAGGED → VALIDATION_QUEUE',r.activity_id||''));}\n// TYPE 7\nconst bpids=new Set(lk.bag_prod_id_set);\nfor(const r of data.bag_app){const b=String(r.bag_id||'');if(b&&!bpids.has(b))anomalies.push(log('bag_application','TYPE 7',`Orphan bag_id: ${b}`,'bag_id',b,'No matching production record','FLAGGED → VALIDATION_QUEUE',b));}\n// TYPE 8\nfor(const r of data.bag_app){const b=String(r.bag_id||''),aw=toF(r.bag_weight),pw=lk.bag_prod_weight_map[b];if(!isNaN(aw)&&pw!==undefined){const d=Math.abs(aw-pw)/pw;if(d>0.05)anomalies.push(log('bag_application','TYPE 8',`Weight disc ${(d*100).toFixed(1)}%: app=${aw.toFixed(2)} vs prod=${pw.toFixed(2)}`,'bag_weight',aw,`prod=${pw.toFixed(2)} kg`,'FLAGGED → VALIDATION_QUEUE',b));}}\n// TYPE 9\nconst bs={};\nfor(const r of fixedBag){const p=String(r.production_id||''),w=toF(r.weight);if(p&&!isNaN(w))bs[p]=(bs[p]||0)+w;}\nfor(const r of data.biochar_prod){const p=String(r.activity_id||''),dec=toF(r.biochar_amount_kg),s=bs[p];if(s!==undefined&&!isNaN(dec)){const d=Math.abs(s-dec);if(d>0.01)anomalies.push(log('bag_production','TYPE 9',`Batch sum: sum=${s.toFixed(2)} vs declared=${dec.toFixed(2)} Δ=${d.toFixed(2)}`,'biochar_amount_kg',`sum=${s.toFixed(2)}`,`Declared=${dec.toFixed(2)} kg`,'FLAGGED → VALIDATION_QUEUE',p));}}\n// TYPE 10\nfor(const r of data.bag_app){const b=String(r.bag_id||''),aids=lk.bag_app_map[b]||[];if(aids.length>1)anomalies.push(log('bag_application','TYPE 10',`Bag di ${aids.length} batches: [${aids.sort().join(', ')}]`,'bag_id / application_id',b,'Satu bag hanya boleh di SATU batch','FLAGGED → VALIDATION_QUEUE',b));}\n\nconst tc={};for(const a of anomalies)tc[a.anomaly_type]=(tc[a.anomaly_type]||0)+1;\nreturn [{json:{...data, fixed_bag_prod:fixedBag, anomalies, type_counts:tc,\n  total_anomalies:anomalies.length,\n  new_flags:anomalies.filter(a=>a.action.includes('VALIDATION_QUEUE')).length,\n  auto_fixed:anomalies.filter(a=>a.action.includes('AUTO-FIXED')).length,\n  run_timestamp:new Date().toISOString().replace('T',' ').slice(0,19),\n}}];\n"
+      },
+      "id": "db5638a5-5fa1-45a7-99ce-f9c602da1270",
+      "name": "🔍 Detect All 10 Anomaly Types",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p=$input.first().json, an=p.anomalies, fb=p.fixed_bag_prod;\nconst sk={'biochar_production':'biochar_prod','bag_production':'bag_prod','biochar_application':'biochar_app','bag_application':'bag_app'};\nconst fl={biochar_prod:new Set(),bag_prod:new Set(),biochar_app:new Set(),bag_app:new Set()};\nfor(const a of an){if(a.anomaly_type==='TYPE 1')continue;\n  for(const[pr,k]of Object.entries(sk)){if(a.Sheet.startsWith(pr)){const rid=String(a.Record_ID),rows=k==='bag_prod'?fb:p[k];\n    for(const r of rows){const id=String(r.bag_id||r.activity_id||'');if(id===rid)fl[k].add(r._row_index);}}}}\nconst seen=new Set();\nfor(const r of fb){const b=String(r.bag_id||'');if(seen.has(b))fl.bag_prod.add(r._row_index);else seen.add(b);}\nreturn [{json:{...p, cleaned:{\n  biochar_prod:p.biochar_prod.filter(r=>!fl.biochar_prod.has(r._row_index)),\n  bag_prod:fb.filter(r=>!fl.bag_prod.has(r._row_index)),\n  biochar_app:p.biochar_app.filter(r=>!fl.biochar_app.has(r._row_index)),\n  bag_app:p.bag_app.filter(r=>!fl.bag_app.has(r._row_index)),\n}}}];\n"
+      },
+      "id": "073434bd-5bc7-45b9-a5df-6b3258f389b9",
+      "name": "🧹 Build Cleaned Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p=$input.first().json;\nconst mk=rows=>rows.map(r=>{const{_row_index,...rest}=r;return{...rest,_cleaning_note:'auto-cleaned'};});\nreturn [{json:{...p, write_data:{\n  cleaned_prod_batch:mk(p.cleaned.biochar_prod),\n  cleaned_bag_prod:mk(p.cleaned.bag_prod),\n  cleaned_app_batch:mk(p.cleaned.biochar_app),\n  cleaned_bag_app:mk(p.cleaned.bag_app),\n}}}];\n"
+      },
+      "id": "d32ea189-12eb-41ed-bd9a-b93639faf370",
+      "name": "📝 Prepare Write Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_prod_batch",
+          "mode": "name"
+        }
+      },
+      "id": "012246d9-f26a-4786-a1fa-01b8137e3899",
+      "name": "🗑️ Clear prod_batch",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        1552,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_bag_prod",
+          "mode": "name"
+        }
+      },
+      "id": "91d3269b-3646-43a2-a5a8-fd55ac95e71e",
+      "name": "🗑️ Clear bag_prod",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        1552,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_app_batch",
+          "mode": "name"
+        }
+      },
+      "id": "8a34d62c-4d98-48d9-afd3-615ccdc2d120",
+      "name": "🗑️ Clear app_batch",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        1552,
+        384
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_bag_app",
+          "mode": "name"
+        }
+      },
+      "id": "3a70f3dd-9530-40e5-8e5b-fc9121c4c193",
+      "name": "🗑️ Clear bag_app",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        1552,
+        576
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_prod_batch",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Timestamp"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3cf0e7b8-0b20-4add-8fd9-5c81ac2bf76a",
+      "name": "✅ Write CLEANED_prod_batch",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        0
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_bag_prod",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Timestamp"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "24840bff-1283-4d4b-a424-47e4183a23d9",
+      "name": "✅ Write CLEANED_bag_prod",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        192
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_app_batch",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "biochar_prod"
+          ],
+          "schema": [
+            {
+              "id": "biochar_prod",
+              "displayName": "biochar_prod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a1aaf185-978b-4187-af26-39ae155ff982",
+      "name": "✅ Write CLEANED_app_batch",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        384
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CLEANED_bag_app",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "biochar_prod"
+          ],
+          "schema": [
+            {
+              "id": "biochar_prod",
+              "displayName": "biochar_prod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f08c7928-a2c3-4732-86c7-99df173e28e4",
+      "name": "✅ Write CLEANED_bag_app",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        2000,
+        576
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "196b41d9-af4d-4d82-a78f-98a51d232d2a",
+      "name": "⏳ Wait All Writes Done",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2224,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.should_notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "06831cbb-0b91-45f5-99be-c601e2cad1d2",
+      "name": "❓ Ada Anomali Baru?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4464,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p=$input.first().json;\nconst an=p.anomalies||[], tc=p.type_counts||{};\nconst fl=an.filter(a=>a.action.includes('VALIDATION_QUEUE'));\nconst summary=Object.entries(tc).filter(([t])=>t!=='TYPE 1').sort().map(([t,c])=>`${t}: ${c}`).join('\\n');\nconst preview=fl.slice(0,5).map(a=>`[${a.anomaly_type}] ${a.Sheet} | ${a.Record_ID}\\n→ ${a.description}`).join('\\n\\n');\nconst more=fl.length>5?`\\n\\n... dan ${fl.length-5} lainnya`:'';\nreturn [{json:{\n  to:'nurimammasri.01@gmail.com',\n  subject:`[WasteX] ${p.new_flags||0} anomali baru — ${new Date(p.run_timestamp).toLocaleDateString('id-ID')}`,\n  body:`WasteX Pipeline Laporan\\n==========================\\nRun: ${p.run_timestamp}\\nAnomali baru: ${p.new_flags||0}\\nAuto-fixed: ${p.auto_fixed||0}\\nButuh review: ${fl.length}\\n\\nRINGKASAN:\\n${summary}\\n\\nPREVIEW:\\n${preview}${more}\\n\\nBuka VALIDATION_QUEUE untuk review.\\n---\\nEmail otomatis WasteX.`,\n}}];\n"
+      },
+      "id": "bc601916-2b33-48cb-9b71-7700491d5124",
+      "name": "📧 Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4688,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "7c180cb3-f748-4355-84b4-bfce330778a0",
+      "name": "📨 Send Email Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4912,
+        192
+      ],
+      "webhookId": "b79df30b-50d7-4b69-baa2-0a5a2c6049df",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dfWhW77Bf9R2aM5c",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{status:'SUCCESS',message:'Pipeline selesai — tidak ada anomali baru'}}];"
+      },
+      "id": "cc835b6b-c55a-462d-98df-207ef1a38d97",
+      "name": "✅ Done — Tidak Ada Anomali",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4688,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{status:'SUCCESS',message:'Pipeline selesai — email terkirim'}}];"
+      },
+      "id": "85063b47-aa54-430a-8198-8d8d87b6d714",
+      "name": "✅ Done — Email Terkirim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5136,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Ambil cleaned data untuk biochar_production\nconst p = $('🧹 Build Cleaned Data').first().json;\nconst rows = p.cleaned.biochar_prod || [];\nif (rows.length === 0) return [{ json: { _empty: true } }];\n// Return setiap row sebagai item terpisah, tanpa _row_index\nreturn rows.map(r => {\n  const { _row_index, ...clean } = r;\n  return { json: { ...clean, _cleaning_note: 'auto-cleaned' } };\n});\n"
+      },
+      "id": "6a393f27-f40b-416b-bf2a-11dfd7faf746",
+      "name": "📊 Flatten CLEANED_prod_batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p = $('🧹 Build Cleaned Data').first().json;\nconst rows = p.cleaned.bag_prod || [];\nif (rows.length === 0) return [{ json: { _empty: true } }];\nreturn rows.map(r => {\n  const { _row_index, ...clean } = r;\n  return { json: { ...clean, _cleaning_note: 'auto-cleaned' } };\n});\n"
+      },
+      "id": "9d55bb8e-0892-4280-9544-abe143514826",
+      "name": "📊 Flatten CLEANED_bag_prod",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p = $('🧹 Build Cleaned Data').first().json;\nconst rows = p.cleaned.biochar_app || [];\nif (rows.length === 0) return [{ json: { _empty: true } }];\nreturn rows.map(r => {\n  const { _row_index, ...clean } = r;\n  return { json: { ...clean, _cleaning_note: 'auto-cleaned' } };\n});\n"
+      },
+      "id": "add376e0-9970-41f4-9cf8-f624fc849d73",
+      "name": "📊 Flatten CLEANED_app_batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p = $('🧹 Build Cleaned Data').first().json;\nconst rows = p.cleaned.bag_app || [];\nif (rows.length === 0) return [{ json: { _empty: true } }];\nreturn rows.map(r => {\n  const { _row_index, ...clean } = r;\n  return { json: { ...clean, _cleaning_note: 'auto-cleaned' } };\n});\n"
+      },
+      "id": "c2af6785-1fae-47d6-af9b-f4b09a3bc864",
+      "name": "📊 Flatten CLEANED_bag_app",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "361bb3a5-e800-4f02-9c1b-fac45d1ca634",
+      "name": "⏳ Wait All Reads Done1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        208,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('🔄 Restore After Queue1').first().json;\n\nreturn [\n  {\n    json: {\n      ...p,\n      should_notify: (p.new_flags || 0) > 0\n    }\n  }\n];"
+      },
+      "id": "7f06b9f1-99aa-439f-ae7e-139e71b1e0b1",
+      "name": "🔔 Check Notify1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4240,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "AUTOMATION_LOG",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "(OPTIONAL) OUTPUT: Automation script writes one row per run here."
+          ],
+          "schema": [
+            {
+              "id": "(OPTIONAL) OUTPUT: Automation script writes one row per run here.",
+              "displayName": "(OPTIONAL) OUTPUT: Automation script writes one row per run here.",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "_pp",
+              "displayName": "_pp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Run_Timestamp",
+              "displayName": "Run_Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sheet_Processed",
+              "displayName": "Sheet_Processed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Records_In",
+              "displayName": "Records_In",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Records_Clean",
+              "displayName": "Records_Clean",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Records_Flagged",
+              "displayName": "Records_Flagged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Comma_Decimal",
+              "displayName": "Errors_Comma_Decimal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Negative",
+              "displayName": "Errors_Negative",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Missing_Critical",
+              "displayName": "Errors_Missing_Critical",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Duplicate_Bag",
+              "displayName": "Errors_Duplicate_Bag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Orphan_Bag",
+              "displayName": "Errors_Orphan_Bag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Weight_Discrepancy",
+              "displayName": "Errors_Weight_Discrepancy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Future_Date",
+              "displayName": "Errors_Future_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Errors_Invalid_Category",
+              "displayName": "Errors_Invalid_Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Action_Taken",
+              "displayName": "Action_Taken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "849ae226-cd01-41e2-9028-1bab6d934b6e",
+      "name": "📝 Append AUTOMATION_LOG1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        4016,
+        288
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst fi = $input.first().json;\nconst p  = fi._pp ? JSON.parse(fi._pp) : fi;\nconst an = p.anomalies || [], cl = p.cleaned || {}, ts = p.run_timestamp;\n\nconst ct = (sn, t) => an.filter(a => a.Sheet.startsWith(sn) && a.anomaly_type === t).length;\n\nconst cfg = [\n  { n:'biochar_production',  rk:'biochar_prod', ck:'biochar_prod'  },\n  { n:'bag_production',      rk:'bag_prod',      ck:'bag_prod'      },\n  { n:'biochar_application', rk:'biochar_app',  ck:'biochar_app'   },\n  { n:'bag_application',     rk:'bag_app',       ck:'bag_app'       },\n];\n\nreturn cfg.map(({ n, rk, ck }, i) => {\n  const raw  = p[rk]  || [];\n  const cln  = cl[ck] || [];\n  const sa   = an.filter(a => a.Sheet.startsWith(n));\n  const fl   = sa.filter(a => a.anomaly_type !== 'TYPE 1').length;\n\n  const e1=ct(n,'TYPE 1'), e2=ct(n,'TYPE 2'), e3=ct(n,'TYPE 3'), e4=ct(n,'TYPE 4');\n  const e5=ct(n,'TYPE 5'), e6=ct(n,'TYPE 6'), e7=ct(n,'TYPE 7'), e8=ct(n,'TYPE 8');\n  const e9=ct(n,'TYPE 9'), e10=ct(n,'TYPE 10');\n\n  const acts = [];\n  if (e1 > 0) acts.push(`${e1} comma decimal auto-fixed`);\n  if (fl > 0) acts.push(`${fl} rows flagged ke VALIDATION_QUEUE`);\n  if (raw.length - cln.length > 0) acts.push(`${raw.length - cln.length} rows excluded dari CLEANED`);\n\n  const notes = [];\n  if (e9  > 0) notes.push(`TYPE 9 batch sum mismatch: ${e9}`);\n  if (e10 > 0) notes.push(`TYPE 10 bag multi-application: ${e10}`);\n\n  return { json: {\n    Run_Timestamp             : ts,\n    Sheet_Processed           : n,\n    Records_In                : raw.length,\n    Records_Clean             : cln.length,\n    Records_Flagged           : fl,\n    Errors_Comma_Decimal      : e1,\n    Errors_Negative           : e2,\n    Errors_Missing_Critical   : e3,\n    Errors_Duplicate_Bag      : e4,\n    Errors_Orphan_Bag         : e7,\n    Errors_Weight_Discrepancy : e8,\n    Errors_Future_Date        : e5,\n    Errors_Invalid_Category   : e6,\n    Action_Taken              : acts.length ? acts.join('; ') : 'No anomalies — data passed clean',\n    Notes                     : notes.join('; '),\n    // simpan payload hanya di baris pertama\n    _pp                       : i === 0 ? JSON.stringify(p) : '',\n  }};\n});\n"
+      },
+      "id": "cfa14e67-f2d4-4f03-99b4-839fe51fae68",
+      "name": "📊 Build AUTOMATION_LOG Rows1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore payload utama langsung dari node sebelum split queue\nconst p = $('🔄 Restore Pipeline Data1').first().json;\n\nreturn [\n  {\n    json: p\n  }\n];"
+      },
+      "id": "e83cc8e2-8002-4b61-8967-af3f53659247",
+      "name": "🔄 Restore After Queue1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1QqSa7reb4i2Oz7pnbb6sAflJEtbsCwF4m19J7aDgsoE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "VALIDATION_QUEUE",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "OUTPUT: Log every flagged record here. One row per anomaly found."
+          ],
+          "schema": [
+            {
+              "id": "OUTPUT: Log every flagged record here. One row per anomaly found.",
+              "displayName": "OUTPUT: Log every flagged record here. One row per anomaly found.",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "detected_at",
+              "displayName": "detected_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed_By",
+              "displayName": "Reviewed_By",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resolution",
+              "displayName": "Resolution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resolved_At",
+              "displayName": "Resolved_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "_pp",
+              "displayName": "_pp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sheet",
+              "displayName": "Sheet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "anomaly_type",
+              "displayName": "anomaly_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Field",
+              "displayName": "Field",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "original_value",
+              "displayName": "original_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "suggested_fix",
+              "displayName": "suggested_fix",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Record_ID",
+              "displayName": "Record_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7bf4fd38-5322-48dd-b58c-1b56a657d941",
+      "name": "📋 Append VALIDATION_QUEUE1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        3120,
+        288
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xJv6eMIPUJy12TlZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst p = $input.first().json;\nconst toQ = p.anomalies.filter(a => !a.action.includes('AUTO-FIXED'));\n\nif (toQ.length === 0) {\n  return [{ json: { ...p, _skip: true, queued_count: 0 } }];\n}\n\n// Simpan payload hanya di _global, tidak ikut ke sheet\nconst pPayload = JSON.stringify({ ...p, queued_count: toQ.length });\n\n// Return setiap anomali sebagai item terpisah\n// Hanya field yang perlu masuk ke VALIDATION_QUEUE\nreturn toQ.map((a, i) => ({\n  json: {\n    Sheet          : a.Sheet,\n    anomaly_type   : a.anomaly_type,\n    description    : a.description,\n    Field          : a.Field,\n    original_value : a.original_value,\n    suggested_fix  : a.suggested_fix,\n    action         : a.action,\n    Record_ID      : a.Record_ID,\n    detected_at    : a.detected_at,\n    Reviewed_By    : '',\n    Resolution     : '',\n    Resolved_At    : '',\n    // simpan payload di item pertama untuk diambil setelah append\n    _pp            : i === 0 ? pPayload : '',\n  }\n}));\n"
+      },
+      "id": "69c9b539-02fb-4769-9d16-380bc351573d",
+      "name": "⚠️ Split Anomalies for Queue1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Semua 4 Write CLEANED sudah selesai\n// Ambil pipeline payload dari node Detect yang sudah jalan sebelumnya\nconst detect  = $('🔍 Detect All 10 Anomaly Types').first().json;\nconst cleaned = $('🧹 Build Cleaned Data').first().json.cleaned;\nreturn [{ json: { ...detect, cleaned } }];\n"
+      },
+      "id": "8a081141-ca87-4f2f-ae28-6f4ed2ec91bc",
+      "name": "🔄 Restore Pipeline Data1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hapus field internal _pp sebelum ditulis ke Google Sheets\nconst items = $input.all();\n\nreturn items.map(item => {\n  const { _pp, ...cleanRow } = item.json;\n\n  return {\n    json: cleanRow\n  };\n});"
+      },
+      "id": "a94246b7-a144-4086-aa0f-6f5046b20817",
+      "name": "🧼 Clean Before Queue Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hapus field internal _pp sebelum ditulis ke Google Sheets\nconst items = $input.all();\n\nreturn items.map(item => {\n  const { _pp, ...cleanRow } = item.json;\n\n  return {\n    json: cleanRow\n  };\n});"
+      },
+      "id": "95493e28-04cc-4034-9e79-6f524817b0e9",
+      "name": "🧼 Clean Before Queue Write1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3792,
+        288
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Daily Trigger 07:00": {
+      "main": [
+        [
+          {
+            "node": "📥 Read biochar_production",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📥 Read bag_production",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📥 Read biochar_application",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📥 Read bag_application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Read biochar_production": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Reads Done1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Read bag_production": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Reads Done1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "📥 Read biochar_application": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Reads Done1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "📥 Read bag_application": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Reads Done1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "🔗 Collect All Sheets": {
+      "main": [
+        [
+          {
+            "node": "🗺️ Build Lookup Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗺️ Build Lookup Maps": {
+      "main": [
+        [
+          {
+            "node": "🔍 Detect All 10 Anomaly Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Detect All 10 Anomaly Types": {
+      "main": [
+        [
+          {
+            "node": "🧹 Build Cleaned Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧹 Build Cleaned Data": {
+      "main": [
+        [
+          {
+            "node": "📝 Prepare Write Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Prepare Write Data": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Clear prod_batch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🗑️ Clear bag_prod",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🗑️ Clear app_batch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🗑️ Clear bag_app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Clear prod_batch": {
+      "main": [
+        [
+          {
+            "node": "📊 Flatten CLEANED_prod_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Clear bag_prod": {
+      "main": [
+        [
+          {
+            "node": "📊 Flatten CLEANED_bag_prod",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Clear app_batch": {
+      "main": [
+        [
+          {
+            "node": "📊 Flatten CLEANED_app_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Clear bag_app": {
+      "main": [
+        [
+          {
+            "node": "📊 Flatten CLEANED_bag_app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Write CLEANED_prod_batch": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Writes Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Write CLEANED_bag_prod": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Writes Done",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "⏳ Wait All Writes Done": {
+      "main": [
+        [
+          {
+            "node": "🔄 Restore Pipeline Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ Ada Anomali Baru?": {
+      "main": [
+        [
+          {
+            "node": "📧 Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✅ Done — Tidak Ada Anomali",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Build Email": {
+      "main": [
+        [
+          {
+            "node": "📨 Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📨 Send Email Notification": {
+      "main": [
+        [
+          {
+            "node": "✅ Done — Email Terkirim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Flatten CLEANED_prod_batch": {
+      "main": [
+        [
+          {
+            "node": "✅ Write CLEANED_prod_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Flatten CLEANED_bag_prod": {
+      "main": [
+        [
+          {
+            "node": "✅ Write CLEANED_bag_prod",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Flatten CLEANED_app_batch": {
+      "main": [
+        [
+          {
+            "node": "✅ Write CLEANED_app_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Flatten CLEANED_bag_app": {
+      "main": [
+        [
+          {
+            "node": "✅ Write CLEANED_bag_app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Write CLEANED_app_batch": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Writes Done",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "✅ Write CLEANED_bag_app": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait All Writes Done",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "⏳ Wait All Reads Done1": {
+      "main": [
+        [
+          {
+            "node": "🔗 Collect All Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔔 Check Notify1": {
+      "main": [
+        [
+          {
+            "node": "❓ Ada Anomali Baru?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Append AUTOMATION_LOG1": {
+      "main": [
+        [
+          {
+            "node": "🔔 Check Notify1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Build AUTOMATION_LOG Rows1": {
+      "main": [
+        [
+          {
+            "node": "🧼 Clean Before Queue Write1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Restore After Queue1": {
+      "main": [
+        [
+          {
+            "node": "📊 Build AUTOMATION_LOG Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Append VALIDATION_QUEUE1": {
+      "main": [
+        [
+          {
+            "node": "🔄 Restore After Queue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚠️ Split Anomalies for Queue1": {
+      "main": [
+        [
+          {
+            "node": "🧼 Clean Before Queue Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Restore Pipeline Data1": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Split Anomalies for Queue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧼 Clean Before Queue Write": {
+      "main": [
+        [
+          {
+            "node": "📋 Append VALIDATION_QUEUE1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧼 Clean Before Queue Write1": {
+      "main": [
+        [
+          {
+            "node": "📝 Append AUTOMATION_LOG1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8c0ab951-e667-4099-b67e-a39552c21923",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3f44988a4df8671b78ca4bf27761dedd75cd795e4f747b400daf69108fdc5b13"
+  },
+  "id": "MlJIABFB0cAQ005l",
+  "tags": [
+    {
+      "updatedAt": "2026-05-01T12:52:14.263Z",
+      "createdAt": "2026-05-01T12:52:14.263Z",
+      "id": "5Jyw2FPGdkOLwDPk",
+      "name": "WasteX"
+    },
+    {
+      "updatedAt": "2026-05-01T12:52:14.285Z",
+      "createdAt": "2026-05-01T12:52:14.285Z",
+      "id": "lbwEbSuLNIrFC2NO",
+      "name": "Data Pipeline"
+    }
+  ]
+}

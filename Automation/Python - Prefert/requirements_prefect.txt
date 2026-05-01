@@ -1,0 +1,9 @@
+# WasteX Pipeline — Dependencies
+# Install: pip install -r requirements_prefect.txt
+
+prefect==3.6.28
+gspread==6.1.2
+google-auth==2.29.0
+
+# Built-in Python — tidak perlu install:
+# smtplib, email, logging, datetime, collections, copy, os
