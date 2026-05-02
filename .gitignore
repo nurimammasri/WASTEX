@@ -7,10 +7,10 @@ token.json
 service_account*.json
 
 # === DATA FILES (Excel - terlalu besar & bukan source code) ===
-*.xlsx
-*.xls
-*.csv
-data/
+# *.xlsx
+# *.xls
+# *.csv
+# data/
 
 # === PYTHON ===
 __pycache__/
