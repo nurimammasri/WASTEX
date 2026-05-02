@@ -917,9 +917,9 @@ def main():
 
             def style_anom(row):
                 if row["Auto-Fix"] == "✅ Yes":
-                    return ["background-color:#f0fdf4"] * len(row)
+                    return ["background-color:#f0fdf4; color:#166534"] * len(row)
                 if row["Count"] >= 5:
-                    return ["background-color:#fef2f2"] * len(row)
+                    return ["background-color:#fef2f2; color:#991b1b"] * len(row)
                 return [""] * len(row)
 
             styled_anom = disp.style.apply(style_anom, axis=1).set_properties(
