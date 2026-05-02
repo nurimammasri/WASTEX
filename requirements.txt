@@ -3,3 +3,8 @@ numpy
 xlrd
 xlsxwriter
 openpyxl
+matplotlib
+seaborn
+scipy
+streamlit
+plotly
