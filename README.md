@@ -570,7 +570,6 @@ WASTEX/
 │   └── 3. Automation (Python 2).png
 │
 ├── WasteX Data Analyst Workflow — Biochar Data Cleaning, Validation, and Reporting.pdf
-├── CLAUDE.md
 └── README.md
 ```
 
